@@ -1,0 +1,19 @@
+{
+    "author": "Dhruv Prasanna",
+    "gecko": {
+        "id": "{73d97701-cf70-4c1e-841f-3383e6fed499}"
+    },
+    "default_locale": "en",
+    "description": "Groups tabs to make tab management easier and more organized.",
+    "homepage_url": "https://github.com/21dhruvp/TidyTabs",
+    "host_permissions": [
+        "tabs"
+    ],
+    "incognito": "split",
+    "manifest_version": 3,
+    "name": "TidyTabs",
+    "permissions": [
+        "activeTab",
+        "tabHide"
+    ]
+}
