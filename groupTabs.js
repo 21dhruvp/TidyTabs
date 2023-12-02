@@ -4,6 +4,10 @@
 //      create a new section in the json with the name they specify
 // When a tab is closed, remove it from the json
 
+browser.runtime.onInstalled.addListener(() => {console.log("Installed"); handleInstalled();});
+browser.menus.onClicked.addListener(createNewGroup);
+browser.menus.onRemoved.addListener(removeGroup);
+
 async function handleInstalled() {
     browser.menus.create(
         {
@@ -14,19 +18,58 @@ async function handleInstalled() {
         });
 }
 
-browser.runtime.onInstalled.addListener(() => {console.log("Installed"); handleInstalled();});
-
-browser.tabs.onCreated.addListener((tab) => {
-    console.log("Tab opened");
-});
-
-
-async function CreateNewGroup(info, tab) {
-    if (info.menuItemId != "Create New Group") return;
-    var currGroup = await browser.tabs.create({
-        "active": false,
-        "index": 0
-    });
+function onError(error) {
+    console.log("An error has occurred:\n" + error + "\nPlease try again later");
 }
 
-browser.menus.onClicked.addListener(CreateNewGroup);
+class TabGroup {
+    constructor(groupId) {
+        this.groupId = groupId;
+        this.tabs = [];
+    }
+    constructor(groupId, tabs) {
+        this.groupId = groupId;
+        this.tabs = tabs;
+    }
+    addTabs(tabs) {
+        if (tabs instanceof Array) this.tabs = this.tabs.concat(tabs);
+        else this.tabs.push(tabs);
+    }
+    removeTabs(tabs) {
+        // If tabs is not an array, just do a simple removal
+        if (!(tabs instanceof Array)) {
+            this.tabs.splice(this.tabs.find(tabs), 1);
+            return;
+        }
+        // Remove the tabs if given an array
+        for (let t in tabs) {
+            this.tabs.splice(this.tabs.find(t), 1);
+        }
+    }
+}
+
+async function createNewGroup(info, tab) {
+    if (info.menuItemId != "Create New Group") return;
+    let currGroup = await browser.tabs.create({
+        "active": false,
+        "index": 0
+    }); 
+    // Handle if the user highlights multiple tabs, add them all to TabGroup
+    let highlighted = await brower.tabs.query({highlighted: true});
+    let tg = {currGroup.id: [tab.id]};
+    if (!highlighted.length) {
+        let highlightedIds = [];
+        for (let t in highlighted) {
+            highlightedIds.push(t.id);
+        }
+        tg.currGroup.id = highlightedIds;
+    }
+    // store in JSON
+    await browser.storage.local.set(tg).catch(onError);
+}
+
+async function removeGroup(tabId, info) {
+    // This handles when user tries to remove the tab group
+    // Prompt them to either remove all tabs or remove the group itself
+    
+}

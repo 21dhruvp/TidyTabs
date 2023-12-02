@@ -19,6 +19,7 @@
         "activeTab",
         "tabHide",
         "tabs",
-        "menus"
+        "menus",
+        "storage"
     ]
 }
