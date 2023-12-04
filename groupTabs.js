@@ -5,8 +5,12 @@
 // When a tab is closed, remove it from the json
 
 browser.runtime.onInstalled.addListener(() => {console.log("Installed"); handleInstalled();});
+
 browser.menus.onClicked.addListener(createNewGroup);
-browser.menus.onRemoved.addListener(removeGroup);
+browser.menus.onClicked.addListener(addTab);
+
+browser.tabs.onRemoved.addListener(removeTab);
+browser.tabs.onActivated.addListener(changeActiveGroup);
 
 async function handleInstalled() {
     browser.menus.create(
@@ -16,60 +20,105 @@ async function handleInstalled() {
             "type": "normal",
             "contexts": ["tab", "tools_menu"]
         });
+    browser.menus.create(
+        {
+            "id": "Add to Group",
+            "title": "Add To Group",
+            "type": "normal",
+            "contexts": ["tab"]
+        });
+    browser.menus.create(
+        {
+            "id": "Move To Group",
+            "title": "Move to Group",
+            "type": "normal",
+            "contexts": ["tab"]
+        });
+    browser.storage.local.set({ActiveGroup: -1});
 }
 
 function onError(error) {
-    console.log("An error has occurred:\n" + error + "\nPlease try again later");
-}
-
-class TabGroup {
-    constructor(groupId) {
-        this.groupId = groupId;
-        this.tabs = [];
-    }
-    constructor(groupId, tabs) {
-        this.groupId = groupId;
-        this.tabs = tabs;
-    }
-    addTabs(tabs) {
-        if (tabs instanceof Array) this.tabs = this.tabs.concat(tabs);
-        else this.tabs.push(tabs);
-    }
-    removeTabs(tabs) {
-        // If tabs is not an array, just do a simple removal
-        if (!(tabs instanceof Array)) {
-            this.tabs.splice(this.tabs.find(tabs), 1);
-            return;
-        }
-        // Remove the tabs if given an array
-        for (let t in tabs) {
-            this.tabs.splice(this.tabs.find(t), 1);
-        }
-    }
+    console.log("An error has occurred:\n" + error + "\nPlease try again later.");
 }
 
 async function createNewGroup(info, tab) {
     if (info.menuItemId != "Create New Group") return;
+    // Make a popup to set name
+    let groupTitle = "Group " + tab.id.toString();
     let currGroup = await browser.tabs.create({
         "active": false,
         "index": 0
-    }); 
+    });
+    
     // Handle if the user highlights multiple tabs, add them all to TabGroup
-    let highlighted = await brower.tabs.query({highlighted: true});
-    let tg = {currGroup.id: [tab.id]};
-    if (!highlighted.length) {
-        let highlightedIds = [];
-        for (let t in highlighted) {
+    let highlighted = await browser.tabs.query({highlighted: true});
+    let tg = {[currGroup.id.toString()]: Array(tab.id)};
+    let highlightedIds = [];
+    let activeGroup = await browser.storage.local.get(
+        await browser.storage.local.get("ActiveGroup"));
+
+    if (highlighted.length) {
+        for (let t of highlighted) {
+            // Check if user tries to inner groups and don't let them (bad practice!)
+            if (t.id in activeGroup) {
+                // TODO: Tell user they can't nest groups
+                return;
+            }
             highlightedIds.push(t.id);
         }
-        tg.currGroup.id = highlightedIds;
+        tg[currGroup.id.toString()] = highlightedIds;
+    } else if (activeGroup != -1) {
+        if (tab.id in activeGroup) {
+            // TODO: Tell user they can't nest groups
+            return;
+        }
     }
+    await browser.tabs.hide(tg[currGroup.id.toString()]);
     // store in JSON
     await browser.storage.local.set(tg).catch(onError);
 }
 
-async function removeGroup(tabId, info) {
+async function removeTab(tabId, info) {
     // This handles when user tries to remove the tab group
-    // Prompt them to either remove all tabs or remove the group itself
+    // TODO: Prompt them to either remove all tabs or remove the group itself
+    tabId = tabId.toString()
+    console.log("removing " + tabId);
+    let getTab = await browser.storage.local.get(tabId);
     
+    if (Object.keys(getTab).length != 0) {
+        // Remove a group of tabs
+        await browser.tabs.remove(getTab[tabId]);
+        await browser.storage.local.remove(tabId);
+        await browser.storage.local.set({ActiveGroup: -1});
+    } else {
+        // Remove an individual tab
+        let currGroup = await browser.storage.local.get("ActiveGroup");
+        getTab = await browser.storage.local.get(currGroup);
+        for (let tab = 0; tab < getTab.length; tab += 1) {
+            if (getTab[tab] === Number(tabId)) {
+                getTab.splice(tab, 1);
+                await browser.storage.local.set({[currGroup]: [getTab]})
+                console.log(getTab);
+                return;
+            }
+        }
+        console.log(await browser.storage.local.get(null));
+    }
+}
+
+async function addTab(tabId, info) {
+    if (info.menuItemId != "Add To Group") return;
+    console.log("Tab Added");
+    // TODO: Add tabs to a specific group
+}
+
+async function changeActiveGroup(info) {
+    let newActive = await browser.storage.local.get(info.tabId.toString());
+    if (Object.keys(newActive).length != 0) {
+        console.log("changed tab group to: " + info.tabId.toString());
+        await browser.storage.local.set({ActiveGroup: [info.tabId]});
+        let OldActive = await browser.storage.local.get(info.previousTabId.toString());
+        browser.tabs.hide(oldActive[info.previousTabId]);
+        browser.tabs.show(newActive[info.tabId]);
+    }
 }
