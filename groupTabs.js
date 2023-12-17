@@ -73,9 +73,10 @@ async function createNewGroup(info, tab) {
             return;
         }
     }
-    await browser.tabs.hide(tg[currGroup.id.toString()]);
     // store in JSON
     await browser.storage.local.set(tg).catch(onError);
+    await browser.storage.local.set({ActiveGroup: currGroup.id}).catch(onError);
+    console.log(await browser.storage.local.get(null));
 }
 
 async function removeTab(tabId, info) {
@@ -114,11 +115,15 @@ async function addTab(tabId, info) {
 
 async function changeActiveGroup(info) {
     let newActive = await browser.storage.local.get(info.tabId.toString());
-    if (Object.keys(newActive).length != 0) {
+    if (Object.keys(newActive).length != 0 && info.tabID != (await browser.storage.local.get("ActiveGroup")).ActiveGroup) {
         console.log("changed tab group to: " + info.tabId.toString());
         await browser.storage.local.set({ActiveGroup: [info.tabId]});
         let OldActive = await browser.storage.local.get(info.previousTabId.toString());
         browser.tabs.hide(oldActive[info.previousTabId]);
         browser.tabs.show(newActive[info.tabId]);
+        console.log("--------------Old-----------------")
+        console.log(oldActive);
+        console.log("--------------New-----------------")
+        console.log(newActive);
     }
 }
