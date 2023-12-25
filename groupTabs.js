@@ -43,7 +43,7 @@ function onError(error) {
 
 async function createNewGroup(info, tab) {
     if (info.menuItemId != "Create New Group") return;
-    // Make a popup to set name
+    // TODO: Make a popup to set name
     let groupTitle = "Group " + tab.id.toString();
     let currGroup = await browser.tabs.create({
         "active": false,
@@ -54,33 +54,44 @@ async function createNewGroup(info, tab) {
     let highlighted = await browser.tabs.query({highlighted: true});
     let tg = {[currGroup.id.toString()]: Array(tab.id)};
     let highlightedIds = [];
-    let activeGroup = await browser.storage.local.get(
-        await browser.storage.local.get("ActiveGroup"));
+    let activeGroupNum = (await browser.storage.local.get("ActiveGroup")).ActiveGroup; 
+
+    let activeGroup = Object()
+    if(activeGroupNum != -1) {
+        activeGroup = await browser.storage.local.get(activeGroupNum.toString()).catch(onError);
+    }
 
     if (highlighted.length) {
         for (let t of highlighted) {
             // Check if user tries to inner groups and don't let them (bad practice!)
-            if (t.id in activeGroup) {
+            //console.log(activeGroup[activeGroupNum].includes(t.id));
+            if (activeGroupNum != -1 && activeGroup[activeGroupNum].includes(t.id)) {
                 // TODO: Tell user they can't nest groups
+                await browser.tabs.remove(currGroup.id);
                 return;
             }
             highlightedIds.push(t.id);
         }
         tg[currGroup.id.toString()] = highlightedIds;
-    } else if (activeGroup != -1) {
-        if (tab.id in activeGroup) {
+    } else if (activeGroupNum != -1) {
+        if (activeGroup[activeGroupNum].includes(t.id)) {
             // TODO: Tell user they can't nest groups
+            await browser.tabs.remove(currGroup.id);
             return;
         }
     }
     // store in JSON
     await browser.storage.local.set(tg).catch(onError);
+    // TODO: Hide tabs in old group before setting new active group
+    if(activeGroupNum != -1) {
+        await browser.tabs.hide(activeGroup[activeGroupNum.toString()]);
+    }
     await browser.storage.local.set({ActiveGroup: currGroup.id}).catch(onError);
     console.log(await browser.storage.local.get(null));
 }
 
 async function removeTab(tabId, info) {
-    // This handles when user tries to remove the tab group
+    // This handles when user tries to remove a tab from a group or the group itself
     // TODO: Prompt them to either remove all tabs or remove the group itself
     tabId = tabId.toString()
     console.log("removing " + tabId);
@@ -90,21 +101,23 @@ async function removeTab(tabId, info) {
         // Remove a group of tabs
         await browser.tabs.remove(getTab[tabId]);
         await browser.storage.local.remove(tabId);
-        await browser.storage.local.set({ActiveGroup: -1});
+        if((await browser.storage.local.get("ActiveGroup")).ActiveGroup === tabId) {
+            await browser.storage.local.set({ActiveGroup: -1});
+        }
     } else {
         // Remove an individual tab
-        let currGroup = await browser.storage.local.get("ActiveGroup");
-        getTab = await browser.storage.local.get(currGroup);
+        let currGroup = (await browser.storage.local.get("ActiveGroup")).ActiveGroup;
+        if(currGroup === -1) return;
+        getTab = (await browser.storage.local.get(currGroup.toString()))[currGroup.toString()];
         for (let tab = 0; tab < getTab.length; tab += 1) {
             if (getTab[tab] === Number(tabId)) {
                 getTab.splice(tab, 1);
-                await browser.storage.local.set({[currGroup]: [getTab]})
-                console.log(getTab);
-                return;
+                await browser.storage.local.set({[currGroup.toString()]: getTab})
+                break;
             }
         }
-        console.log(await browser.storage.local.get(null));
     }
+    console.log(await browser.storage.local.get(null));
 }
 
 async function addTab(tabId, info) {
@@ -114,16 +127,21 @@ async function addTab(tabId, info) {
 }
 
 async function changeActiveGroup(info) {
-    let newActive = await browser.storage.local.get(info.tabId.toString());
-    if (Object.keys(newActive).length != 0 && info.tabID != (await browser.storage.local.get("ActiveGroup")).ActiveGroup) {
+    console.log("-----------------Changed Group----------------------");
+    let newActive = await browser.storage.local.get((info.tabId).toString());
+    let oldActiveNum = (await browser.storage.local.get("ActiveGroup")).ActiveGroup;
+    if (Object.keys(newActive).length != 0 && info.tabId != oldActiveNum) {
         console.log("changed tab group to: " + info.tabId.toString());
-        await browser.storage.local.set({ActiveGroup: [info.tabId]});
-        let OldActive = await browser.storage.local.get(info.previousTabId.toString());
-        browser.tabs.hide(oldActive[info.previousTabId]);
-        browser.tabs.show(newActive[info.tabId]);
+        await browser.storage.local.set({ActiveGroup: info.tabId});
+        let oldActive = await browser.storage.local.get(oldActiveNum.toString());
         console.log("--------------Old-----------------")
         console.log(oldActive);
         console.log("--------------New-----------------")
         console.log(newActive);
+        console.log("bingo");
+        browser.tabs.show(newActive[(info.tabId).toString()]);
+        console.log("bango");
+        browser.tabs.hide(oldActive[oldActiveNum]);
+        console.log("bongo");
     }
 }
