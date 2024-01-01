@@ -9,7 +9,7 @@
         }
     },
     "background": {
-        "scripts": ["groupTabs.js"]
+        "scripts": ["background/groupTabs.js"]
     },
     "host_permissions": ["<all_urls>"],
     "homepage_url": "https://github.com/21dhruvp/TidyTabs",
