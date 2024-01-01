@@ -43,19 +43,10 @@ function onError(error) {
 
 async function createNewGroup(info, tab) {
     if (info.menuItemId != "CNG") return;
-    // TODO: Ask user to set name -- placeholder for now
-    let groupTitle = "Group " + Object.keys(await browser.storage.local.get(null)).length.toString();
-    let currGroup = await browser.tabs.create({
-        "active": false,
-        "index": 0,
-        "discarded": true,
-        "title": groupTitle,
-        "url": "/webpages/group.html"
-    }).catch(onError);
     
     // Handle if the user highlights multiple tabs, add them all to TabGroup
     let highlighted = await browser.tabs.query({highlighted: true});
-    let tg = {[currGroup.id.toString()]: Array(tab.id)};
+    let tg = [tab.id]; 
     let highlightedIds = [];
     let activeGroupNum = (await browser.storage.local.get("ActiveGroup").catch(onError)).ActiveGroup; 
 
@@ -70,22 +61,40 @@ async function createNewGroup(info, tab) {
             if (activeGroupNum != -1) {
                 if(activeGroup[activeGroupNum].includes(t.id)) {
                     // TODO: Tell user they can't nest groups
-                    await browser.tabs.remove(currGroup.id);
                     return;
                 }
             }
             highlightedIds.push(t.id);
         }
-        tg[currGroup.id.toString()] = highlightedIds;
+        tg = highlightedIds;
     } else if (activeGroupNum != -1) {
         if (activeGroup[activeGroupNum].includes(tab.id)) {
             // TODO: Tell user they can't nest groups
-            await browser.tabs.remove(currGroup.id);
             return;
         }
     }
+
+    // TODO: Ask user to set name -- placeholder for now
+    let groupTitle = "Group " + Object.keys(await browser.storage.local.get(null)).length.toString();
+    let currGroup = await browser.tabs.create({
+        "active": false,
+        "index": (tg.length > 1) ? highlighted[0].index : tab.index,
+        "discarded": true,
+        "title": groupTitle,
+        "url": "/webpages/group.html"
+    }).catch(onError);
+
+    // Move tabs to condense the group to their own consecutive space 
+    if(tg.length > 1) {
+        let firstInd = highlighted[0].index;
+        for(let i = 1; i < highlighted.length; i++) {
+            await browser.tabs.move(highlighted[i].id, {index: firstInd + i + 1}).catch(onError);
+        }
+    }
+
     // store in JSON
-    await browser.storage.local.set(tg).catch(onError);
+    await browser.storage.local.set({[currGroup.id.toString()]: tg}).catch(onError);
+
     // Hide tabs in old group before setting new active group
     if(activeGroupNum != -1) {
         await browser.tabs.hide(activeGroup[activeGroupNum.toString()]).catch(onError);
@@ -167,7 +176,8 @@ async function addTab(info, tab) {
         if(currInd < startInd) {
             await browser.tabs.move(t, {index: startInd-1});
         } else if(currInd > endInd) {
-            await browser.tabs.move(t, {index: endInd+1});
+            endInd++;
+            await browser.tabs.move(t, {index: endInd});
         }
     }
 
