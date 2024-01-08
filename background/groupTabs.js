@@ -81,7 +81,7 @@ async function createNewGroup(info, tab) {
         "index": (tg.length > 1) ? highlighted[0].index : tab.index,
         "discarded": true,
         "title": groupTitle,
-        "url": "/webpages/group.html"
+        "url": "/webpages/build/index.html"
     }).catch(onError);
 
     // Move tabs to condense the group to their own consecutive space 
