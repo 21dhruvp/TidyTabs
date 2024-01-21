@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './App.css';
+import { getNumGroups } from './getBrowserInfo.js';
 
 function GetNewGroupName() {
   const [group, setGroup] = React.useState("");
@@ -27,13 +28,12 @@ function GetTabsInGroup() {
 }
 
 function App() {
-  React.useEffect(() => {
-    async function getTitle() {
-      document.title = "Group " + (await browser.storage.local.get(null).length);
-    }
-    getTitle();
-  }
-  );
+  useEffect(() => {
+    const getData = async () => {
+      return "Group " + ((await getNumGroups())-1).toString();
+    };
+    getData().then((data) => document.title = data);
+  }, []);
   return (
     <div className="mainPage">
       <div className="header">
