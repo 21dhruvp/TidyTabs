@@ -11,6 +11,7 @@ browser.menus.onClicked.addListener(addTab);
 
 browser.tabs.onRemoved.addListener(removeTab);
 browser.tabs.onActivated.addListener(changeActiveGroup);
+browser.tabs.onUpdated.addListener(changeAddGroup);
 
 async function handleInstalled() {
     await browser.menus.create(
@@ -194,6 +195,12 @@ async function addTab(info, tab) {
             await browser.tabs.update(nonGroupTabs[nonGroupTabs.indexOf(tabsToAdd[tabsToAdd.length-1])+1], {active: true}).catch(onError);
         }
         await browser.tabs.hide(tabsToAdd).catch(onError);
+    }
+}
+
+async function changeAddGroup(tid, info, _) {
+    if(Object.keys(await browser.storage.local.get(tid.toString()).catch(onError)) != 0) {
+        await browser.menus.update(tid.toString(), {"title": info.title});
     }
 }
 

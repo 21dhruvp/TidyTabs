@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import './App.css';
-import { getNumGroups } from './getBrowserInfo.js';
+import { GetNumGroups, GetTabsInGroup } from './getBrowserInfo.js';
 
 function GetNewGroupName() {
   const [group, setGroup] = React.useState("");
@@ -19,18 +19,25 @@ function GetNewGroupName() {
     </form>);
 }
 
-function GetTabsInGroup() {
+function TabsTable() {
   // TODO
+  let tabs = GetTabsInGroup();
   return (
     <table>
+      <tr>
+        <th scope="col"></th>
+        <th scope="col"></th>
+        <th scope="col"></th>
+        <th scope="col"></th>
+      </tr>
     </table>
-  )
+  ) 
 }
 
 function App() {
   useEffect(() => {
     const getData = async () => {
-      return "Group " + ((await getNumGroups())-1).toString();
+      return "Group " + ((await GetNumGroups())-1).toString();
     };
     getData().then((data) => document.title = data);
   }, []);
@@ -41,7 +48,7 @@ function App() {
         <GetNewGroupName />
       </div>
       <div className="tabList">
-        <GetTabsInGroup />
+        <TabsTable />
       </div>
     </div> 
   );
