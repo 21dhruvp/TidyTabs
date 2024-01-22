@@ -1,7 +1,7 @@
 {
     "author": "Dhruv Prasanna",
     "name": "TidyTabs",
-    "version": "0.1",
+    "version": "0.3",
     "description": "Groups tabs to make tab management easier and more organized.",
     "browser_specific_settings": {
         "gecko": {
