@@ -1,10 +1,12 @@
-// On init get all tabs and save their names to a json for easy retrieval
-// On tab creation, add it to the json
-// When user creates a group tab, make sure it doesnt call onCreated, and 
-//      create a new section in the json with the name they specify
-// When a tab is closed, remove it from the json
-
-browser.runtime.onInstalled.addListener(() => {console.log("TidyTabs Installed Successfully!"); handleInstalled();});
+browser.runtime.onInstalled.addListener(async () => {
+    console.log("TidyTabs Installed Successfully!"); 
+    await browser.scripts.registerContentScripts([{
+        "id": "ext-page",
+        "js": ["content/ExtPage.js"],
+        "matches": ["moz-extension://9ba3345b-ab9a-473c-b211-24e79e44b607/webpages/build/index.html"]
+    }]); 
+    await handleInstalled();
+});
 
 browser.menus.onClicked.addListener(createNewGroup);
 browser.menus.onClicked.addListener(addTab);
@@ -12,6 +14,16 @@ browser.menus.onClicked.addListener(addTab);
 browser.tabs.onRemoved.addListener(removeTab);
 browser.tabs.onActivated.addListener(changeActiveGroup);
 browser.tabs.onUpdated.addListener(changeAddGroup);
+
+browser.storage.onChanged.addListener(async (changes, area) => {
+    let changedTabId = Object.keys(changes)[0];
+    if (area != "local" || changedTabId == "ActiveGroup") return;
+    if(changes[changedTabId].newValue != undefined) {
+        let tabPort = browser.tabs.connect(parseInt(changedTabId), {name: changedTabId});
+        let message = changes[changedTabId].newValue.length;
+        await tabPort.postMessage(message);
+    }
+});
 
 async function handleInstalled() {
     await browser.menus.create(
@@ -75,8 +87,7 @@ async function createNewGroup(info, tab) {
         }
     }
 
-    // TODO: Ask user to set name -- placeholder for now
-    let groupTitle = "Group " + Object.keys(await browser.storage.local.get(null)).length.toString();
+    let groupTitle = "(" + tg.length + ") Group " + Object.keys(await browser.storage.local.get(null)).length.toString();
     let currGroup = await browser.tabs.create({
         "active": false,
         "index": (tg.length > 1) ? highlighted[0].index : tab.index,
@@ -104,7 +115,7 @@ async function createNewGroup(info, tab) {
 
     browser.menus.create({
         "id": currGroup.id.toString(),
-        "title": groupTitle,
+        "title": groupTitle.substring(groupTitle.indexOf(" ") + 1),
         "parentId": "ATG",
         "type": "normal",
         "contexts": ["tab"]
@@ -200,7 +211,7 @@ async function addTab(info, tab) {
 
 async function changeAddGroup(tid, info, _) {
     if(Object.keys(await browser.storage.local.get(tid.toString()).catch(onError)) != 0) {
-        await browser.menus.update(tid.toString(), {"title": info.title});
+        await browser.menus.update(tid.toString(), {"title": info.title.substring(info.title.indexOf(" ") + 1)});
     }
 }
 

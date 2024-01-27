@@ -11,7 +11,11 @@
     "background": {
         "scripts": ["background/groupTabs.js"]
     },
-    "host_permissions": ["<all_urls>"],
+    "content-scripts": {
+        "matches": ["moz-extension://9ba3345b-ab9a-473c-b211-24e79e44b607/webpages/build/index.html"],
+        "js": ["content/ExtPage.js"]
+    },
+    "host_permissions": ["moz-extension://9ba3345b-ab9a-473c-b211-24e79e44b607/webpages/build/index.html"],
     "homepage_url": "https://github.com/21dhruvp/TidyTabs",
     "incognito": "spanning",
     "manifest_version": 3,
@@ -20,6 +24,7 @@
         "tabHide",
         "tabs",
         "menus",
-        "storage"
+        "storage",
+        "scripting"
     ]
 }
